@@ -14,14 +14,14 @@
 	var/list/jobs = new/list()
 
 	var/pay_active = 1
-	var/lottery_active = 0		// inactive until someone actually buys a ticket
+	var/lottery_active = 0		
 	var/time_between_paydays = 0.0
 	var/time_until_payday = 0.0
 
 	var/time_between_lotto = 0.0
 	var/time_until_lotto = 0.0
 
-	// We'll start at 0 credits, and increase it in the lotteryday proc
+	// We'll start at 0 spacebux, and increase it in the lotteryday proc
 	var/lotteryJackpot = 0
 	// 500 minutes ~ 8.2 hours
 	var/list/winningNumbers = new/list(4, 100)
@@ -57,7 +57,6 @@
 		jobs["Captain"] = 0.0
 
 		default_wages()
-
 
 	proc/default_wages()
 
@@ -138,6 +137,7 @@
 	proc/start_lottery()
 		src.time_until_lotto = ( ticker ? ticker.round_elapsed_ticks : 0 ) + time_between_lotto
 		lottery_active = 1
+		command_alert("The first round of the lottery will begin shortly! Enter now for a chance to win 5,000 Spacebux!")
 		return
 
 	proc/payday()
@@ -152,11 +152,13 @@
 				command_alert("The station budget appears to have run dry. We regret to inform you that no further wage payments are possible until this situation is rectified.","Payroll Announcement")
 				wagesystem.pay_active = 0
 				break
+		if (lottery_active == 0)
+			start_lottery()
 
 	proc/lotteryDay()
 
 		// Increase by 10000 regardless // cogwerks - changed this to be way higher
-		lotteryJackpot += 50000
+		lotteryJackpot += 5000
 
 		// Just so its not a mass of text
 		var/j = lotteryRound
@@ -177,7 +179,7 @@
 					T.name = "Winning Ticket"
 
 		//LAGCHECK(LAG_LOW)
-		command_alert("Lottery round [lotteryRound]. I wish you all the best of luck. For an amazing prize of [lotteryJackpot] credits the lottery numbers are: [dat]. If you have these numbers get to an ATM to claim your prize now!", "Lottery")
+		command_alert("Lottery round [lotteryRound]. I wish you all the best of luck. For an amazing prize of [lotteryJackpot] SpaceBux, the lottery numbers are: [dat]. If you have these numbers get to an ATM to claim your prize now!", "Lottery")
 		// We're in the next round!
 		lotteryRound += 1
 
@@ -236,7 +238,7 @@
 			if (src.accessed_record)
 				boutput(user, "<span style=\"color:blue\">You insert the lottery ticket into the ATM.</span>")
 				if(I:winner)
-					boutput(user, "<span style=\"color:blue\">Congratulations, this ticket is a winner netting you [I:winner] credits</span>")
+					boutput(user, "<span style=\"color:blue\">Congratulations, this ticket is a winner netting you [I:winner] SpaceBux!</span>")
 					src.accessed_record.fields["current_money"] += I:winner
 
 					if(wagesystem.lotteryJackpot > I:winner)
@@ -295,7 +297,7 @@
 						dat += "<BR><A HREF='?src=\ref[src];operation=withdrawcash'>Withdraw Cash</A>"
 						dat += "<BR><A HREF='?src=\ref[src];operation=deposit'>Deposit from Card</A>"
 
-						dat += "<BR><BR><A HREF='?src=\ref[src];operation=buy'>Buy Lottery Ticket (100 credits)</A>"
+						dat += "<BR><BR><A HREF='?src=\ref[src];operation=buy'>Buy Lottery Ticket (1000 credits)</A>"
 						dat += "<BR>To claim your winnings you'll need to insert your lottery ticket."
 					else
 						dat += "<BR>Please swipe your card to continue."
@@ -608,7 +610,7 @@
 	density = 0
 	opacity = 0
 	anchored = 1
-
+	
 	deconstruct_flags = DECON_MULTITOOL
 
 	var/datum/data/record/accessed_record = null
@@ -636,8 +638,9 @@
 			if (src.accessed_record)
 				boutput(user, "<span style=\"color:blue\">You insert the lottery ticket into the ATM.</span>")
 				if(I:winner)
-					boutput(user, "<span style=\"color:blue\">Congratulations, this ticket is a winner netting you [I:winner] credits</span>")
-					src.accessed_record.fields["current_money"] += I:winner
+					boutput(user, "<span style=\"color:blue\">Congratulations, this ticket is a winner netting you [I:winner] SpaceBux!</span>")
+					var/obj/item/spacebux/newbux = new(src.loc)
+					newbux.value = I:winner
 
 					if(wagesystem.lotteryJackpot > I:winner)
 						wagesystem.lotteryJackpot -= I:winner
@@ -697,7 +700,7 @@
 						dat += "<BR><A HREF='?src=\ref[src];operation=transfer_spacebux'>Send Spacebux</A>"
 						dat += "<BR><A HREF='?src=\ref[src];operation=withdraw_spacebux'>Withdraw spacebux</A>"
 
-						dat += "<BR><BR><A HREF='?src=\ref[src];operation=buy'>Buy Lottery Ticket (100 credits)</A>"
+						dat += "<BR><BR><A HREF='?src=\ref[src];operation=buy'>Buy Lottery Ticket (1000 credits)</A>"
 						dat += "<BR>To claim your winnings you'll need to insert your lottery ticket."
 					else
 						dat += "<BR>Please swipe your card to continue."
@@ -778,12 +781,14 @@
 					src.accessed_record.fields["current_money"] += amount
 
 			if("buy")
-				if(accessed_record.fields["current_money"] >= 100)
-					src.accessed_record.fields["current_money"] -= 100
+				if(accessed_record.fields["current_money"] >= 1000)
+					src.accessed_record.fields["current_money"] -= 1000
 					boutput(usr, "<span style=\"color:red\">Ticket being dispensed. Good luck!</span>")
 
 					new /obj/item/lotteryTicket(src.loc)
-					wagesystem.start_lottery()
+
+					if (!wagesystem.lottery_active)
+						wagesystem.start_lottery()
 
 				else
 					boutput(usr, "<span style=\"color:red\">Insufficient Funds</span>")
