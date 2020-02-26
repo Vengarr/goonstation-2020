@@ -21,7 +21,7 @@
 	health = 25
 
 	var/step_sound = "step_default"
-	var/step_priority = STEP_PRIORITY_NONE
+	var/step_priority = STEP_PRIORITY_NONE // This determines whether the floor or the shoe makes a noise per step. The higher the step_priority, the more likely the shoe wins.
 	var/step_lots = 0 //classic steps (used for clown shoos)
 
 	var/speedy = 0 		//for industrial booties, to avoid type checks on shoe
