@@ -9,9 +9,77 @@
 	event_handler_flags = USE_FLUID_ENTER | USE_CANPASS
 	var/mob/living/carbon/human/victim = null
 	var/strapped = 0.0
+	var/allow_unbuckle = 1
+	var/mob/living/buckled_guy = null
 
 	var/obj/machinery/computer/operating/computer = null
 	var/id = 0.0
+
+	proc/buckle_in(mob/living/to_buckle, var/stand = 0) //Handles the actual buckling in
+		to_buckle.setStatus("buckled", duration = null)
+		return
+
+	proc/unbuckle() //Ditto but for unbuckling
+		if (src.buckled_guy)
+			src.buckled_guy.end_chair_flip_targeting()
+
+	proc/buckle_mob(var/mob/living/carbon/C as mob, var/mob/user as mob)
+		if (!C || (C.loc != src.loc))
+			return // yeesh
+
+		if (!ticker)
+			user.show_text("You can't buckle anyone in before the game starts.", "red")
+			return
+		if (get_dist(src, user) > 1)
+			user.show_text("[src] is too far away!", "red")
+			return
+		if ((!(iscarbon(C)) || C.loc != src.loc || user.restrained() || user.stat || user.getStatusDuration("paralysis") || user.getStatusDuration("stunned") || user.getStatusDuration("weakened") ))
+			return
+
+		if (C == user)
+			user.visible_message("<span style=\"color:blue\"><b>[C]</b> buckles in!</span>", "<span style=\"color:blue\">You buckle yourself in.</span>")
+		else
+			user.visible_message("<span style=\"color:blue\"><b>[C]</b> is buckled in by [user].</span>", "<span style=\"color:blue\">You buckle in [C].</span>")
+		buckle_in(C)
+		if (isdead(C) && C != user && emergency_shuttle && emergency_shuttle.location == SHUTTLE_LOC_STATION) // 1 should be SHUTTLE_LOC_STATION
+			var/area/shuttle/escape/station/A = get_area(C)
+			if (istype(A))
+				user.unlock_medal("Leave no man behind!", 1)
+		src.add_fingerprint(user)
+
+	proc/unbuckle_mob(var/mob/M as mob, var/mob/user as mob)
+		if (M.buckled && !user.restrained())
+			if (allow_unbuckle)
+				if (M != user)
+					user.visible_message("<span style=\"color:blue\"><b>[M]</b> is unbuckled by [user].</span>", "<span style=\"color:blue\">You unbuckle [M].</span>")
+				else
+					user.visible_message("<span style=\"color:blue\"><b>[M]</b> unbuckles.</span>", "<span style=\"color:blue\">You unbuckle.</span>")
+				unbuckle()
+			else
+				user.show_text("Seems like the buckle is firmly locked into place.", "red")
+
+			src.add_fingerprint(user)
+
+	buckle_in(mob/living/to_buckle)
+		to_buckle.lying = 1
+		if (src.anchored)
+			to_buckle.anchored = 1
+		to_buckle.buckled = src
+		src.buckled_guy = to_buckle
+		to_buckle.set_loc(src.loc)
+
+		to_buckle.set_clothing_icon_dirty()
+		playsound(get_turf(src), "sound/misc/belt_click.ogg", 50, 1)
+		to_buckle.setStatus("buckled", duration = null)
+
+	unbuckle()
+		..()
+		if(src.buckled_guy)
+			buckled_guy.anchored = 0
+			buckled_guy.buckled = null
+			buckled_guy.force_laydown_standup()
+			src.buckled_guy = null
+			playsound(get_turf(src), "sound/misc/belt_click.ogg", 50, 1)
 
 /obj/machinery/optable/New()
 	..()
@@ -45,6 +113,8 @@
 		user.visible_message("<span style=\"color:red\">[user] destroys the table.</span>")
 		src.set_density(0)
 		qdel(src)
+	for (var/mob/M in src.loc)
+		src.unbuckle_mob(M, user)
 	return
 
 /obj/machinery/optable/CanPass(atom/movable/O as mob|obj, target as turf, height=0, air_group=0)
@@ -92,9 +162,6 @@
 			src.victim = M
 			qdel(W)
 			return
-	user.drop_item()
-	if(W && W.loc)
-		W.set_loc(src.loc)
 	return
 
 /obj/machinery/optable/MouseDrop_T(atom/movable/O as mob|obj, mob/user as mob)
@@ -118,6 +185,9 @@
 		return
 
 	var/mob/living/carbon/C = O
+	if(src.loc == C.loc)
+		src.buckle_mob(O, user)
+		return
 	if (user == C)
 		src.visible_message("<span style=\"color:red\"><b>[user.name]</b> lies down on [src].</span>")
 		user.resting = 1
@@ -139,4 +209,7 @@
 			src.victim = C
 		else
 			boutput(user, "<span style=\"color:red\">You were interrupted!</span>")
+	return
+
+
 	return

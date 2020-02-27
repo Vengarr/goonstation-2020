@@ -1901,7 +1901,7 @@
 		if (src.buckled)
 			if (src.buckled == src.loc)
 				src.lying = 1
-			if (istype(src.buckled, /obj/stool/bed))
+			if (istype(src.buckled, /obj/stool/bed) || istype(src.buckled, /obj/machinery/optable))
 				src.lying = 1
 			else
 				src.lying = 0
